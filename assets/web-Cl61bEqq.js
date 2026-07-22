@@ -1,0 +1,1 @@
+import{w as e}from"./index-0Y1EQcf6.js";var t=class extends e{async canOpenUrl(e){return{value:!0}}async openUrl(e){return window.open(e.url,`_blank`),{completed:!0}}};export{t as AppLauncherWeb};
