@@ -567,8 +567,13 @@ export default function App() {
     }
 
     const controller = new AbortController()
+    let timedOut = false
+    let requestTimeout
     const timer = setTimeout(async () => {
       setRouteState('loading')
+      // La vista previa (OSRM público) puede colgarse en redes móviles lentas.
+      // La abortamos a los 15 s para que el estado no se quede en "cargando".
+      requestTimeout = setTimeout(() => { timedOut = true; controller.abort() }, 15_000)
       try {
         const coordinates = stops.map((stop) => `${stop.lng},${stop.lat}`).join(';')
         const response = await fetch(
@@ -581,16 +586,22 @@ export default function App() {
         setRoute(data.routes[0])
         setRouteState('ready')
       } catch (error) {
-        if (error.name !== 'AbortError') {
+        if (timedOut) {
+          setRoute(null)
+          setRouteState('error') // sin aviso: la navegación sigue disponible sin vista previa
+        } else if (error.name !== 'AbortError') {
           setRoute(null)
           setRouteState('error')
           setMessage(error.message || translate('toastRouteCalcFailed'))
         }
+      } finally {
+        clearTimeout(requestTimeout)
       }
     }, 450)
 
     return () => {
       clearTimeout(timer)
+      clearTimeout(requestTimeout)
       controller.abort()
     }
   }, [stops])
@@ -1072,7 +1083,7 @@ export default function App() {
         </div>
 
         <div className="bottom-action">
-          <button className="navigate-button" disabled={stops.length < 2 || routeState !== 'ready'} onClick={navigate}>
+          <button className="navigate-button" disabled={stops.length < 2} onClick={navigate}>
             <span className="nav-icon"><Navigation size={22} fill="currentColor" /></span>
             <span><small>{t('openGoogleMaps')}</small><strong>{t('startNavigation')}</strong></span>
             <ArrowRight size={22} />
