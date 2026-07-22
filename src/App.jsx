@@ -522,6 +522,7 @@ export default function App() {
   const [showSocial, setShowSocial] = useState(false)
   const [routeToShare, setRouteToShare] = useState(null)
   const [incomingShared, setIncomingShared] = useState(null)
+  const [legStep, setLegStep] = useState(0)
   const [routeName, setRouteName] = useState('')
   const [pointToSaveId, setPointToSaveId] = useState(null)
   const [pickupPointName, setPickupPointName] = useState('')
@@ -741,6 +742,14 @@ export default function App() {
   )
   const singleMode = useMemo(() => routeSingleMode(stops), [stops])
   const TravelIcon = singleMode ? TRANSPORT_ICONS[singleMode] : Navigation
+  const legs = stops.slice(1)
+  const legStepSafe = legs.length ? Math.min(legStep, legs.length - 1) : 0
+  const currentLeg = !singleMode && legs.length
+    ? { from: stops[legStepSafe], to: legs[legStepSafe], mode: legModeOf(legs[legStepSafe]), index: legStepSafe }
+    : null
+
+  // Reinicia el recorrido por tramos cuando cambia la ruta.
+  useEffect(() => { setLegStep(0) }, [stops])
 
   const addStop = (place) => {
     setStops((current) => [...current, makeStop(place, current.length ? generalMinutes : 0)])
@@ -1132,24 +1141,20 @@ export default function App() {
               <ArrowRight size={22} />
             </button>
           ) : (
-            <div className="leg-nav">
-              <p className="leg-nav-title">{t('legNavTitle')}</p>
-              {stops.slice(1).map((toStop, index) => {
-                const fromStop = stops[index]
-                const mode = legModeOf(toStop)
-                const LegIcon = TRANSPORT_ICONS[mode]
-                return (
-                  <button key={toStop.id} className="leg-nav-button" onClick={() => navigateLeg(fromStop, toStop)}>
-                    <span className="leg-nav-icon"><LegIcon size={18} /></span>
-                    <span className="leg-nav-copy">
-                      <small>{fromStop.name} → {toStop.name}</small>
-                      <strong>{t(`mode_${mode}`)}</strong>
-                    </span>
-                    <ArrowRight size={18} />
-                  </button>
-                )
-              })}
-            </div>
+            <button
+              className="navigate-button"
+              onClick={() => {
+                navigateLeg(currentLeg.from, currentLeg.to)
+                setLegStep((step) => (step + 1) % legs.length)
+              }}
+            >
+              <span className="nav-icon">{(() => { const Icon = TRANSPORT_ICONS[currentLeg.mode]; return <Icon size={22} /> })()}</span>
+              <span>
+                <small>{t('legProgress', { n: currentLeg.index + 1, total: legs.length })} · {t(`mode_${currentLeg.mode}`)}</small>
+                <strong>{currentLeg.from.name} → {currentLeg.to.name}</strong>
+              </span>
+              <ArrowRight size={22} />
+            </button>
           )}
           <p>{t('autoSaved')}</p>
         </div>
