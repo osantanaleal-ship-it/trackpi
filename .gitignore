@@ -1,0 +1,13 @@
+node_modules/
+dist/
+deliverables/
+.playwright-cli/
+.tools/
+output/
+*.log
+.env.local
+android/.gradle/
+android/local.properties
+android/app/build/
+android/signing.properties
+android/app/trackpi-release.jks

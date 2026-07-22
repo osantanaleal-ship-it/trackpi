@@ -1,0 +1,12 @@
+{
+  "appId": "com.trackpi.app",
+  "appName": "Trackpi",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#ffffff"
+  }
+}

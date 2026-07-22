@@ -1,0 +1,32 @@
+{
+  "name": "trackpi",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app-launcher": "^8.0.1",
+    "@capacitor/core": "^8.4.2",
+    "@supabase/supabase-js": "2.110.7",
+    "@vitejs/plugin-react": "latest",
+    "leaflet": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-leaflet": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
+    "sharp": "^0.35.3",
+    "vitest": "latest"
+  }
+}
