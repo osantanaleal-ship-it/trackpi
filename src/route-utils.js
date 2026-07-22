@@ -9,7 +9,24 @@ export function getStopMinutes(stops, mode, generalMinutes) {
 }
 
 export function getRouteSummary(route, stops, mode, generalMinutes, now = new Date()) {
-  const drivingMinutes = Math.max(0, Math.round((route?.duration || 0) / 60))
+  const legs = route?.legs || []
+  let travelSeconds = 0
+  let transitPending = false
+  if (legs.length) {
+    legs.forEach((leg, index) => {
+      const legMode = legModeOf(stops[index + 1])
+      if (legMode === 'transit') {
+        transitPending = true // sin estimación gratuita para transporte público
+        return
+      }
+      const speed = MODE_SPEED_MPS[legMode]
+      travelSeconds += speed ? (leg.distance || 0) / speed : (leg.duration || 0)
+    })
+  } else {
+    travelSeconds = route?.duration || 0
+  }
+
+  const drivingMinutes = Math.max(0, Math.round(travelSeconds / 60))
   const stopMinutes = getStopMinutes(stops, mode, generalMinutes)
   const totalMinutes = drivingMinutes + stopMinutes
   const arrival = new Date(now.getTime() + totalMinutes * 60_000)
@@ -20,6 +37,7 @@ export function getRouteSummary(route, stops, mode, generalMinutes, now = new Da
     totalMinutes,
     distanceKm: route ? route.distance / 1000 : 0,
     arrival,
+    transitPending,
   }
 }
 
@@ -32,7 +50,32 @@ export function formatMinutes(totalMinutes) {
   return `${hours} h ${minutes} min`
 }
 
-export function buildGoogleMapsUrl(stops) {
+export const TRANSPORT_MODES = ['car', 'walk', 'bike', 'transit']
+const GMAPS_TRAVELMODE = { car: 'driving', walk: 'walking', bike: 'bicycling', transit: 'transit' }
+// Velocidades para estimar el tiempo de tramos a pie o en bici (m/s).
+const MODE_SPEED_MPS = { walk: 1.4, bike: 4.2 }
+
+export function legModeOf(stop) {
+  return TRANSPORT_MODES.includes(stop?.mode) ? stop.mode : 'car'
+}
+
+export function getLegModes(stops) {
+  return stops.slice(1).map(legModeOf)
+}
+
+// Devuelve el modo único si toda la ruta usa el mismo transporte (o solo hay un
+// tramo). Devuelve null cuando los tramos mezclan varios transportes.
+export function routeSingleMode(stops) {
+  const modes = getLegModes(stops)
+  if (!modes.length) return 'car'
+  return modes.every((mode) => mode === modes[0]) ? modes[0] : null
+}
+
+export function gmapsTravelmode(mode) {
+  return GMAPS_TRAVELMODE[mode] || 'driving'
+}
+
+export function buildGoogleMapsUrl(stops, travelmode = 'driving') {
   if (stops.length < 2) return null
 
   const origin = stops[0]
@@ -40,7 +83,7 @@ export function buildGoogleMapsUrl(stops) {
   const params = new URLSearchParams({
     api: '1',
     destination: toPoint(destination),
-    travelmode: 'driving',
+    travelmode,
     dir_action: 'navigate',
     utm_source: 'trackpi',
     utm_campaign: 'directions_request',
@@ -51,6 +94,21 @@ export function buildGoogleMapsUrl(stops) {
     params.set('waypoints', stops.slice(1, -1).map(toPoint).join('|'))
   }
 
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
+// Enlace de Google Maps para un único tramo (origen -> destino) con su modo.
+export function buildLegMapsUrl(fromStop, toStop, mode = 'car') {
+  if (!fromStop || !toStop) return null
+  const params = new URLSearchParams({
+    api: '1',
+    destination: toPoint(toStop),
+    travelmode: gmapsTravelmode(mode),
+    dir_action: 'navigate',
+    utm_source: 'trackpi',
+    utm_campaign: 'directions_request',
+  })
+  if (!fromStop.isCurrentLocation) params.set('origin', toPoint(fromStop))
   return `https://www.google.com/maps/dir/?${params.toString()}`
 }
 

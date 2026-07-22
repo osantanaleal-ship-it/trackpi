@@ -33,4 +33,23 @@ describe('rutas compartidas', () => {
     payload.stops[0].lat = 999
     expect(() => sharedPayloadToSavedRoute(payload)).toThrow('coordenadas')
   })
+
+  it('conserva el transporte de cada tramo al compartir', () => {
+    const mixed = {
+      ...savedRoute,
+      stops: [
+        { ...savedRoute.stops[0], mode: 'car' },
+        { ...savedRoute.stops[1], mode: 'bike' },
+      ],
+    }
+    const imported = sharedPayloadToSavedRoute(makeSharedRoutePayload(mixed))
+    expect(imported.stops[0].mode).toBe('car')
+    expect(imported.stops[1].mode).toBe('bike')
+  })
+
+  it('normaliza un transporte inválido recibido a coche', () => {
+    const payload = makeSharedRoutePayload(savedRoute)
+    payload.stops[1].mode = 'cohete'
+    expect(sharedPayloadToSavedRoute(payload).stops[1].mode).toBe('car')
+  })
 })

@@ -616,6 +616,34 @@ h1 { margin: 0; font: 800 clamp(26px, 3vw, 38px)/1.08 'Manrope', sans-serif; let
 .navigate-button > span:nth-child(2) { display: flex; flex-direction: column; }
 .navigate-button small { margin-bottom: 2px; font-size: 8px; font-weight: 800; letter-spacing: 0.14em; opacity: 0.58; }
 .navigate-button strong { font: 800 15px/1.2 'Manrope', sans-serif; }
+
+.transport-picker { display: inline-flex; gap: 3px; margin-top: 6px; padding: 3px; background: #eeeee9; border-radius: 9px; }
+.transport-picker button { width: 28px; height: 26px; display: grid; place-items: center; padding: 0; color: #7a8480; border: 0; border-radius: 7px; background: transparent; cursor: pointer; }
+.transport-picker button.active { color: white; background: var(--coral); box-shadow: 0 2px 6px rgba(255, 90, 31, 0.32); }
+
+.transit-note { margin: 12px 0 0; padding: 9px 10px; font-size: 10px; line-height: 1.4; color: #dfe1dc; background: rgba(255, 255, 255, 0.08); border-radius: 8px; }
+
+.leg-nav { display: flex; flex-direction: column; gap: 8px; }
+.leg-nav-title { margin: 0 0 2px; color: #7a8480; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.leg-nav-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px 1fr 18px;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 13px;
+  color: var(--ink);
+  text-align: left;
+  border: 0;
+  border-radius: 12px;
+  background: var(--lime);
+  box-shadow: 0 8px 16px rgba(255, 106, 43, 0.24);
+  cursor: pointer;
+}
+.leg-nav-icon { width: 34px; height: 34px; display: grid; place-items: center; color: white; background: var(--ink); border-radius: 10px; }
+.leg-nav-copy { display: flex; flex-direction: column; min-width: 0; }
+.leg-nav-copy small { margin-bottom: 1px; overflow: hidden; font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; opacity: 0.72; }
+.leg-nav-copy strong { font: 800 13px/1.2 'Manrope', sans-serif; }
 .bottom-action > p { margin: 7px 0 0; color: #7e8883; font-size: 9px; text-align: center; }
 
 .toast {

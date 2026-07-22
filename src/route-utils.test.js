@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildGoogleMapsUrl,
+  buildLegMapsUrl,
   buildFrenchDangerZones,
   buildSpeedDangerZones,
   formatMinutes,
   getRouteBounds,
   getRouteSummary,
   getStopMinutes,
+  legModeOf,
   optimizeIntermediateStops,
+  routeSingleMode,
 } from './route-utils.js'
 
 const stops = [
@@ -55,6 +58,58 @@ describe('navigation URL', () => {
     const url = new URL(buildGoogleMapsUrl(sixStops))
     expect(url.searchParams.get('waypoints').split('|')).toHaveLength(4)
     expect(url.searchParams.get('destination')).toBe('41.950000,2.750000')
+  })
+})
+
+describe('transporte por tramo', () => {
+  it('detecta cuando toda la ruta usa el mismo transporte', () => {
+    expect(routeSingleMode([{}, { mode: 'car' }, { mode: 'car' }])).toBe('car')
+    expect(routeSingleMode([{}, { mode: 'bike' }])).toBe('bike')
+    expect(routeSingleMode([{}])).toBe('car') // sin tramos
+    expect(routeSingleMode([{}, {}])).toBe('car') // sin modo = coche
+  })
+
+  it('devuelve null cuando hay transportes mezclados', () => {
+    expect(routeSingleMode([{}, { mode: 'car' }, { mode: 'bike' }])).toBe(null)
+  })
+
+  it('normaliza modos desconocidos a coche', () => {
+    expect(legModeOf({ mode: 'teletransporte' })).toBe('car')
+    expect(legModeOf({})).toBe('car')
+    expect(legModeOf({ mode: 'walk' })).toBe('walk')
+  })
+
+  it('usa el travelmode de Google Maps del modo elegido', () => {
+    expect(new URL(buildGoogleMapsUrl(stops, 'bicycling')).searchParams.get('travelmode')).toBe('bicycling')
+  })
+
+  it('genera un enlace de un solo tramo con su transporte', () => {
+    const url = new URL(buildLegMapsUrl({ lat: 41.9, lng: 2.8 }, { lat: 41.4, lng: 2.1 }, 'walk'))
+    expect(url.searchParams.get('origin')).toBe('41.900000,2.800000')
+    expect(url.searchParams.get('destination')).toBe('41.400000,2.100000')
+    expect(url.searchParams.get('travelmode')).toBe('walking')
+  })
+
+  it('omite el origen del tramo cuando es la ubicación actual', () => {
+    const url = new URL(buildLegMapsUrl({ lat: 41.9, lng: 2.8, isCurrentLocation: true }, { lat: 41.4, lng: 2.1 }, 'car'))
+    expect(url.searchParams.has('origin')).toBe(false)
+  })
+
+  it('estima el tiempo por tramo según su transporte', () => {
+    const legStops = [{ lat: 0, lng: 0 }, { mode: 'car' }, { mode: 'walk' }]
+    const route = { distance: 10000, duration: 999, legs: [{ distance: 4000, duration: 300 }, { distance: 6000, duration: 500 }] }
+    const summary = getRouteSummary(route, legStops, 'general', 0, new Date('2026-01-01T08:00:00Z'))
+    // coche usa la duración OSRM (300 s); a pie estima 6000 m / 1,4 m/s ≈ 4286 s → total ≈ 76 min
+    expect(summary.drivingMinutes).toBe(76)
+    expect(summary.transitPending).toBe(false)
+  })
+
+  it('excluye el transporte público del tiempo y lo marca como pendiente', () => {
+    const transitStops = [{ lat: 0, lng: 0 }, { mode: 'transit' }]
+    const route = { distance: 5000, duration: 600, legs: [{ distance: 5000, duration: 600 }] }
+    const summary = getRouteSummary(route, transitStops, 'general', 0, new Date('2026-01-01T08:00:00Z'))
+    expect(summary.drivingMinutes).toBe(0)
+    expect(summary.transitPending).toBe(true)
   })
 })
 

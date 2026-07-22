@@ -17,9 +17,13 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  Bike,
   BookmarkPlus,
+  Bus,
+  Car,
   CarFront,
   Check,
+  Footprints,
   ChevronDown,
   ChevronUp,
   Clock3,
@@ -46,11 +50,15 @@ import {
 } from 'lucide-react'
 import {
   buildGoogleMapsUrl,
+  buildLegMapsUrl,
   buildSpeedDangerZones,
   formatMinutes,
   getRouteBounds,
   getRouteSummary,
+  gmapsTravelmode,
+  legModeOf,
   optimizeIntermediateStops,
+  routeSingleMode,
 } from './route-utils.js'
 import {
   formatPlaceSubtitle,
@@ -300,7 +308,34 @@ function MinuteStepper({ value, onChange, compact = false }) {
   )
 }
 
-function StopRow({ stop, index, total, durationMode, onMinutes, onMove, onRemove, onSavePoint }) {
+const TRANSPORT_ICONS = { car: Car, walk: Footprints, bike: Bike, transit: Bus }
+
+function TransportPicker({ value, onChange }) {
+  const { t } = useI18n()
+  const current = legModeOf({ mode: value })
+  return (
+    <div className="transport-picker" role="group" aria-label={t('chooseTransport')}>
+      {['car', 'walk', 'bike', 'transit'].map((mode) => {
+        const Icon = TRANSPORT_ICONS[mode]
+        return (
+          <button
+            key={mode}
+            type="button"
+            className={current === mode ? 'active' : ''}
+            aria-pressed={current === mode}
+            aria-label={t(`mode_${mode}`)}
+            title={t(`mode_${mode}`)}
+            onClick={() => onChange(mode)}
+          >
+            <Icon size={15} />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function StopRow({ stop, index, total, durationMode, onMinutes, onMode, onMove, onRemove, onSavePoint }) {
   const { t } = useI18n()
   const isOrigin = index === 0
   const isDestination = index === total - 1 && total > 1
@@ -314,6 +349,7 @@ function StopRow({ stop, index, total, durationMode, onMinutes, onMove, onRemove
       <div className="stop-copy">
         <span>{label}</span>
         <strong title={stop.name}>{stop.name}</strong>
+        {!isOrigin && <TransportPicker value={stop.mode} onChange={onMode} />}
         {!isOrigin && durationMode === 'individual' && (
           <MinuteStepper compact value={stop.minutes} onChange={onMinutes} />
         )}
@@ -703,6 +739,8 @@ export default function App() {
     () => getRouteSummary(route, stops, durationMode, generalMinutes, now),
     [route, stops, durationMode, generalMinutes, now],
   )
+  const singleMode = useMemo(() => routeSingleMode(stops), [stops])
+  const TravelIcon = singleMode ? TRANSPORT_ICONS[singleMode] : Navigation
 
   const addStop = (place) => {
     setStops((current) => [...current, makeStop(place, current.length ? generalMinutes : 0)])
@@ -798,8 +836,7 @@ export default function App() {
     setMessage(t('toastStopsSorted'))
   }
 
-  const navigate = async () => {
-    const url = buildGoogleMapsUrl(stops)
+  const openMapsUrl = async (url) => {
     if (!url) return
     if (Capacitor.isNativePlatform()) {
       try {
@@ -813,6 +850,9 @@ export default function App() {
     }
     window.location.href = url
   }
+
+  const navigate = () => openMapsUrl(buildGoogleMapsUrl(stops, gmapsTravelmode(routeSingleMode(stops) || 'car')))
+  const navigateLeg = (fromStop, toStop) => openMapsUrl(buildLegMapsUrl(fromStop, toStop, legModeOf(toStop)))
 
   const saveCurrentRoute = () => {
     if (stops.length < 2) return
@@ -1028,6 +1068,7 @@ export default function App() {
                     total={stops.length}
                     durationMode={durationMode}
                     onMinutes={(minutes) => updateStop(index, { minutes })}
+                    onMode={(mode) => updateStop(index, { mode })}
                     onMove={(direction) => moveStop(index, direction)}
                     onRemove={() => setStops((current) => current.filter((_, stopIndex) => stopIndex !== index))}
                     onSavePoint={() => openSavePoint(stop)}
@@ -1070,10 +1111,11 @@ export default function App() {
                 </div>
               </div>
               <div className="stats-grid">
-                <Stat icon={<CarFront size={18} />} label={t('driving')} value={formatMinutes(summary.drivingMinutes)} />
+                <Stat icon={<TravelIcon size={18} />} label={singleMode ? t(`travel_${singleMode}`) : t('travelMixed')} value={formatMinutes(summary.drivingMinutes)} />
                 <Stat icon={<Clock3 size={18} />} label={t('stopsLabel')} value={formatMinutes(summary.stopMinutes)} />
                 <Stat icon={<Route size={18} />} label={t('distance')} value={`${summary.distanceKm.toFixed(1)} km`} />
               </div>
+              {summary.transitPending && <p className="transit-note">{t('transitNotCounted')}</p>}
               {routeState === 'error' && <p className="route-error">{t('routeErrorSummary')}</p>}
               {stops.length > 5 && (
                 <p className="waypoint-warning">{t('waypointWarning')}</p>
@@ -1083,11 +1125,32 @@ export default function App() {
         </div>
 
         <div className="bottom-action">
-          <button className="navigate-button" disabled={stops.length < 2} onClick={navigate}>
-            <span className="nav-icon"><Navigation size={22} fill="currentColor" /></span>
-            <span><small>{t('openGoogleMaps')}</small><strong>{t('startNavigation')}</strong></span>
-            <ArrowRight size={22} />
-          </button>
+          {singleMode ? (
+            <button className="navigate-button" disabled={stops.length < 2} onClick={navigate}>
+              <span className="nav-icon"><Navigation size={22} fill="currentColor" /></span>
+              <span><small>{t('openGoogleMaps')}</small><strong>{t('startNavigation')}</strong></span>
+              <ArrowRight size={22} />
+            </button>
+          ) : (
+            <div className="leg-nav">
+              <p className="leg-nav-title">{t('legNavTitle')}</p>
+              {stops.slice(1).map((toStop, index) => {
+                const fromStop = stops[index]
+                const mode = legModeOf(toStop)
+                const LegIcon = TRANSPORT_ICONS[mode]
+                return (
+                  <button key={toStop.id} className="leg-nav-button" onClick={() => navigateLeg(fromStop, toStop)}>
+                    <span className="leg-nav-icon"><LegIcon size={18} /></span>
+                    <span className="leg-nav-copy">
+                      <small>{fromStop.name} → {toStop.name}</small>
+                      <strong>{t(`mode_${mode}`)}</strong>
+                    </span>
+                    <ArrowRight size={18} />
+                  </button>
+                )
+              })}
+            </div>
+          )}
           <p>{t('autoSaved')}</p>
         </div>
       </section>

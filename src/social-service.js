@@ -1,5 +1,6 @@
 import { isSocialConfigured, supabase } from './supabase-client.js'
 import { translate } from './i18n.js'
+import { legModeOf } from './route-utils.js'
 
 function requireClient() {
   if (!isSocialConfigured || !supabase) throw new Error(translate('svcNotConfigured'))
@@ -169,6 +170,7 @@ export function makeSharedRoutePayload(savedRoute) {
       name: String(stop.name || 'Punto').slice(0, 160),
       countryCode: stop.countryCode || null,
       minutes: Math.max(0, Math.min(240, Number(stop.minutes) || 0)),
+      mode: legModeOf(stop),
     })),
   }
 }
@@ -190,6 +192,7 @@ export function sharedPayloadToSavedRoute(payload) {
       name: String(stop.name || 'Punto').slice(0, 160),
       countryCode: typeof stop.countryCode === 'string' ? stop.countryCode.slice(0, 2).toLowerCase() : null,
       minutes: Math.max(0, Math.min(240, Number(stop.minutes) || 0)),
+      mode: legModeOf(stop),
       isCurrentLocation: false,
     }
   })
