@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "android:sync": "npm run build && cap sync android",
-    "android:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1"
+    "android:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-android-apk.ps1",
+    "deploy:pages": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-pages.ps1"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
