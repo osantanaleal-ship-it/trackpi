@@ -41,9 +41,18 @@ try {
   New-Item -ItemType Directory -Force -Path $deliverables | Out-Null
   Copy-Item -LiteralPath $sourceApk -Destination $targetApk -Force
 
-  $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $targetApk
   Write-Host "APK creado: $targetApk"
-  Write-Host "SHA-256: $($hash.Hash)"
+  try {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($targetApk)
+    try {
+      $hashBytes = $sha.ComputeHash($stream)
+      $hashHex = ($hashBytes | ForEach-Object { $_.ToString('x2') }) -join ''
+      Write-Host "SHA-256: $hashHex"
+    } finally { $stream.Dispose(); $sha.Dispose() }
+  } catch {
+    Write-Host "SHA-256: (no calculado: $($_.Exception.Message))"
+  }
 }
 finally {
   Pop-Location

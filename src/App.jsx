@@ -58,7 +58,7 @@ import {
   searchPlaces,
 } from './place-search.js'
 import { LANGUAGES, translate, useI18n } from './i18n.js'
-import { buildShareUrl, clearIncomingShareParam, readIncomingSharedRoute } from './share-link.js'
+import { buildShareUrl, clearIncomingShareParam, readIncomingSharedRoute, readSharedRouteFromUrl } from './share-link.js'
 
 const SocialPanel = lazy(() => import('./SocialPanel.jsx'))
 
@@ -516,15 +516,46 @@ export default function App() {
     return () => clearInterval(timer)
   }, [])
 
-  useEffect(() => {
-    const incoming = readIncomingSharedRoute()
+  const applyIncomingRoute = (incoming) => {
     if (!incoming) return
     setStops(incoming.stops.map((stop) => ({ ...stop })))
     setDurationMode(incoming.durationMode || 'general')
     setGeneralMinutes(incoming.generalMinutes ?? 10)
     setIncomingShared(incoming)
-    clearIncomingShareParam()
     setMessage(t('toastSharedRouteOpened', { name: incoming.name }))
+  }
+
+  // Web: ruta compartida en la URL al abrir (?r=...)
+  useEffect(() => {
+    const incoming = readIncomingSharedRoute()
+    if (!incoming) return
+    applyIncomingRoute(incoming)
+    clearIncomingShareParam()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Nativo (Android): enlace abierto dentro de la app instalada (App Link)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    let cancelled = false
+    let removeListener = () => {}
+    ;(async () => {
+      try {
+        const { App: CapApp } = await import('@capacitor/app')
+        const launch = await CapApp.getLaunchUrl()
+        if (launch?.url && !cancelled) applyIncomingRoute(readSharedRouteFromUrl(launch.url))
+        const handle = await CapApp.addListener('appUrlOpen', (event) => {
+          applyIncomingRoute(readSharedRouteFromUrl(event.url))
+        })
+        removeListener = () => handle.remove()
+      } catch {
+        // @capacitor/app no disponible: sin deep-link nativo, la app sigue funcionando.
+      }
+    })()
+    return () => {
+      cancelled = true
+      removeListener()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

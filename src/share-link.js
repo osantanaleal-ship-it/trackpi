@@ -37,18 +37,23 @@ export function buildShareUrl(savedRoute) {
   return `${base}/?r=${encoded}`
 }
 
-export function readIncomingSharedRoute() {
-  if (typeof window === 'undefined') return null
-  let encoded = new URLSearchParams(window.location.search).get('r')
-  if (!encoded && window.location.hash) {
-    encoded = new URLSearchParams(window.location.hash.replace(/^#/, '')).get('r')
-  }
-  if (!encoded) return null
+export function readSharedRouteFromUrl(urlString) {
   try {
+    const url = new URL(urlString)
+    let encoded = url.searchParams.get('r')
+    if (!encoded && url.hash) {
+      encoded = new URLSearchParams(url.hash.replace(/^#/, '')).get('r')
+    }
+    if (!encoded) return null
     return decodeSharedRoute(encoded)
   } catch {
     return null
   }
+}
+
+export function readIncomingSharedRoute() {
+  if (typeof window === 'undefined') return null
+  return readSharedRouteFromUrl(window.location.href)
 }
 
 export function clearIncomingShareParam() {
